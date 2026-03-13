@@ -126,56 +126,101 @@ this prediction to fail?)*
 
 ---
 
-## 5) Per-Dataset Hypothesis Example
+## 5) Registered Hypotheses
 
-<!-- Phase 2 trim candidate: §5 largely duplicates the §4 template with placeholders filled in.
-     If this contract grows during Tier C deepening, consider replacing with a single condensed example. -->
+### H-1: Unconstrained adversarial attacks will degrade IDS classifiers significantly
 
-### H-1: {{DATASET_1_NAME}} — {{DATASET_1_PREDICTION}}
-
-**Dataset:** {{DATASET_1_NAME}}
+**Dataset:** CICIDS2017
 
 **Prediction:**
-{{DATASET_1_PREDICTION}}
+Unconstrained FGSM and PGD attacks (perturbing all 78 features) will reduce macro-F1 of baseline classifiers (RF, XGBoost, MLP) by ≥30 percentage points at ε=0.3.
 
 **EDA Evidence:**
-{{DATASET_1_EDA_OBSERVATION}}
+`outputs/eda/eda_summary.json` shows 50 highly correlated feature pairs (|r|>0.95) and 8 zero-variance features. The high redundancy means perturbations propagate through correlated features, amplifying adversarial impact. The 80.3% BENIGN majority means even small adversarial perturbations to attack-class samples can flip predictions.
 
 **Theory Link:**
-{{DATASET_1_THEORY}}
+Adversarial examples exploit the linear nature of high-dimensional spaces (Goodfellow et al., 2014). With 78 features and extensive correlations, the effective dimensionality is lower, meaning gradient-based attacks can find efficient perturbation directions. Tree-based models (RF, XGBoost) are also vulnerable because tabular adversarial attacks shift samples across decision boundaries in feature space.
 
 **Metric Focus:**
-{{DATASET_1_METRIC}}
+Macro-F1 — accounts for the extreme class imbalance (206,484:1 ratio between BENIGN and Heartbleed). Accuracy would be misleading given 80.3% BENIGN prevalence.
 
 **Baseline Prediction:**
-Relative to the baseline ({{DATASET_1_BASELINE_METRIC}}), I predict that [intervention] will [improve / not improve] because [reasoning].
+Relative to clean-data macro-F1 (expected ≥0.85 for RF/XGBoost based on published CICIDS2017 benchmarks), I predict that unconstrained adversarial perturbation will reduce macro-F1 to ≤0.55 because gradient-based attacks exploit the high-dimensional feature space without constraints.
 
 **Failure Mode:**
-{{DATASET_1_FAILURE_MODE}}
+If baseline classifiers are already poorly calibrated on rare classes (Infiltration: 36 samples, Heartbleed: 11), the "degradation" floor may already be hit by the imbalance, masking the adversarial effect.
 
 ---
 
-### H-2: {{DATASET_2_NAME}} — {{DATASET_2_PREDICTION}}
+### H-2: Realistic constraints will substantially reduce attack effectiveness
 
-**Dataset:** {{DATASET_2_NAME}}
+**Dataset:** CICIDS2017
 
 **Prediction:**
-{{DATASET_2_PREDICTION}}
+Constraining adversarial perturbations to the 57 attacker-controllable features (excluding 14 defender-observable features like TCP flags and Destination Port) will reduce attack success rate by ≥40% relative to unconstrained attacks at the same ε budget.
 
 **EDA Evidence:**
-{{DATASET_2_EDA_OBSERVATION}}
+`outputs/eda/eda_summary.json` shows the top discriminative feature is PSH Flag Count (|r|=0.31 with label), which is defender-observable only (set by OS TCP stack). The top 3 label-correlated features include 2 that are at least partially defender-controlled. Constraining attacks removes the most informative features from the attacker's perturbation space.
 
 **Theory Link:**
-{{DATASET_2_THEORY}}
+Feature-constrained adversarial attacks have a strictly smaller feasible perturbation set. If the most discriminative features for classification are in the defender-observable set, constraining the attacker forces perturbations through less informative features, requiring larger ε to achieve the same evasion. This is the "realistic threat model" argument from Pierazzi et al. (2020).
 
 **Metric Focus:**
-{{DATASET_2_METRIC}}
+Attack success rate (ASR) — the fraction of adversarial examples that flip the classifier's prediction from correct attack label to BENIGN. Directly measures evasion capability.
 
 **Baseline Prediction:**
-Relative to the baseline ({{DATASET_2_BASELINE_METRIC}}), I predict that [intervention] will [improve / not improve] because [reasoning].
+Relative to unconstrained ASR (predicted ≥80% at ε=0.3), I predict constrained ASR will be ≤48% at the same budget because the defender-observable features (especially TCP flags) carry disproportionate discriminative power.
 
 **Failure Mode:**
-{{DATASET_2_FAILURE_MODE}}
+If the 57 controllable features contain sufficient discriminative information (i.e., the 14 defender-observable features are redundant with controllable features due to the 50 high-correlation pairs), then constraints may not meaningfully reduce attack effectiveness.
+
+---
+
+### H-3: Adversarial training will be more effective than input preprocessing defenses
+
+**Dataset:** CICIDS2017
+
+**Prediction:**
+Adversarial training (retraining with adversarial examples) will recover ≥60% of the macro-F1 lost to constrained attacks, while input preprocessing defenses (feature squeezing, spatial smoothing) will recover ≤30%.
+
+**EDA Evidence:**
+`outputs/eda/eda_summary.json` shows 8 zero-variance features and many near-duplicate feature pairs (e.g., Fwd Packet Length Mean ≡ Avg Fwd Segment Size, r=1.0). This redundancy means preprocessing that clips or smooths individual features will be bypassed by attacking through correlated "backup" features. Adversarial training learns the attack distribution directly.
+
+**Theory Link:**
+Adversarial training creates a minimax game where the model learns the distribution of adversarial perturbations (Madry et al., 2018). Input preprocessing is input-agnostic and cannot adapt to the specific perturbation patterns. With 50+ highly correlated feature pairs, attackers can shift perturbation weight to correlated features that preprocessing leaves intact.
+
+**Metric Focus:**
+Macro-F1 recovery ratio — (defended_F1 - attacked_F1) / (clean_F1 - attacked_F1). Measures what fraction of adversarial degradation each defense recovers.
+
+**Baseline Prediction:**
+Relative to constrained-attack macro-F1, I predict adversarial training will achieve recovery ratio ≥0.60 while preprocessing defenses will achieve ≤0.30 because adversarial training is model-aware and preprocessing is not.
+
+**Failure Mode:**
+If adversarial training overfits to the specific attack method used during training (e.g., PGD) and fails to generalize to adaptive attacks, the recovery ratio will be lower than predicted.
+
+---
+
+### H-4: Adaptive attacks will bypass adversarial training but not constrained-feature defenses
+
+**Dataset:** CICIDS2017
+
+**Prediction:**
+An adaptive attacker with knowledge of the adversarial training defense will recover ≥70% of the attack success rate lost to adversarial training. However, against a defense that also enforces feature constraints (only monitoring defender-observable features for detection), the adaptive attacker will recover ≤30% because the constraint is architectural, not learned.
+
+**EDA Evidence:**
+`outputs/eda/eda_summary.json` shows 14 defender-observable features including all TCP flag counts and Destination Port. These features are set by the OS network stack or network routing — an attacker cannot forge them without root access on the victim's machine. This architectural constraint cannot be "adapted around" regardless of attacker knowledge.
+
+**Theory Link:**
+The "arms race" in adversarial ML (Carlini & Wagner, 2017; Tramer et al., 2020) shows that defenses relying on learned patterns are vulnerable to adaptive attacks that account for the defense. However, constraints based on physical or architectural impossibilities (attacker cannot control TCP flags on the receiving end) create a hard bound on attack capability that no optimization can overcome.
+
+**Metric Focus:**
+Adaptive attack success rate (ASR) relative to non-adaptive ASR — measures how much defense benefit survives when the attacker knows the defense.
+
+**Baseline Prediction:**
+Relative to non-adaptive constrained ASR, I predict adaptive attacks against adversarially-trained models will increase ASR by ≥20pp but adaptive attacks against constraint-aware detection will increase ASR by ≤8pp.
+
+**Failure Mode:**
+If the defender-observable features have low individual discriminative power (despite PSH Flag Count being #1 at r=0.31, it may not be sufficient alone for robust detection), then the architectural constraint defense will be weak, and adaptive attacks will succeed against it too.
 
 *(Add additional hypotheses as needed. Multi-part projects may have hypotheses per experimental part.)*
 
@@ -215,9 +260,10 @@ Maintain this table as hypotheses are resolved. It provides a single-glance view
 
 | ID | Dataset | Prediction (short) | Metric | Predicted Direction | Observed Result | Verdict | Evidence Artifact |
 |----|---------|-------------------|--------|--------------------|-----------------|---------|--------------------|
-| H-1 | {{DATASET_1_NAME}} | *(summary)* | {{DATASET_1_METRIC}} | *(e.g., A > B)* | *(median ± IQR)* | *(Confirmed / Refuted / Partial)* | *(path to summary.json or figure)* |
-| H-2 | {{DATASET_2_NAME}} | *(summary)* | {{DATASET_2_METRIC}} | *(e.g., A > B)* | *(median ± IQR)* | *(Confirmed / Refuted / Partial)* | *(path to summary.json or figure)* |
-| *(add rows)* | | | | | | | |
+| H-1 | CICIDS2017 | Unconstrained attacks degrade F1 ≥30pp | Macro-F1 | Clean F1 ≥0.85 → Attacked F1 ≤0.55 | *(pending)* | *(pending)* | *(pending)* |
+| H-2 | CICIDS2017 | Realistic constraints reduce ASR ≥40% | ASR | Unconstrained ASR ≥80% → Constrained ASR ≤48% | *(pending)* | *(pending)* | *(pending)* |
+| H-3 | CICIDS2017 | Adv training > preprocessing defense | F1 recovery ratio | Adv train ≥0.60 vs preprocess ≤0.30 | *(pending)* | *(pending)* | *(pending)* |
+| H-4 | CICIDS2017 | Adaptive attacks bypass learned but not architectural defenses | Adaptive ASR delta | Adv train: +20pp, constraint-aware: ≤+8pp | *(pending)* | *(pending)* | *(pending)* |
 
 ### Verdict Criteria
 
@@ -240,9 +286,10 @@ Every hypothesis MUST appear in the report in two locations:
 
 | Hypothesis | Stated In | Resolved In | Resolution Artifact |
 |-----------|-----------|-------------|---------------------|
-| H-1 | Report §3 | Report §Conclusion | `outputs/final_eval/...` |
-| H-2 | Report §3 | Report §Conclusion | `outputs/final_eval/...` |
-| *(add rows)* | | | |
+| H-1 | Report §3 (Methodology) | Report §5 (Discussion) | `outputs/adversarial/unconstrained_results.json` |
+| H-2 | Report §3 (Methodology) | Report §5 (Discussion) | `outputs/adversarial/constrained_results.json` |
+| H-3 | Report §3 (Methodology) | Report §5 (Discussion) | `outputs/defense/defense_comparison.json` |
+| H-4 | Report §3 (Methodology) | Report §5 (Discussion) | `outputs/adaptive/adaptive_results.json` |
 
 ### Hypotheses → Experiment Design
 

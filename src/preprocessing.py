@@ -9,10 +9,28 @@ import json
 from pathlib import Path
 from typing import Optional
 
+import random
+
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, StandardScaler
+
+
+def set_seed(seed: int):
+    """Set all random seeds for reproducibility (ENVIRONMENT_CONTRACT §8)."""
+    random.seed(seed)
+    np.random.seed(seed)
+    try:
+        import torch
+        torch.manual_seed(seed)
+        torch.use_deterministic_algorithms(True)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
+    except ImportError:
+        pass
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 DATA_RAW = PROJECT_DIR / "data" / "raw"
@@ -187,6 +205,16 @@ def create_splits(
     Per EXPERIMENT_CONTRACT §3: Fixed splits, stratified by attack class.
     """
     assert abs(train_ratio + val_ratio + test_ratio - 1.0) < 1e-6
+
+    # Drop classes with fewer than 3 members (can't stratify with <2 per split)
+    class_counts = df["label_encoded"].value_counts()
+    min_members = 3  # need at least 1 per split
+    small_classes = class_counts[class_counts < min_members].index.tolist()
+    if small_classes:
+        n_dropped = df["label_encoded"].isin(small_classes).sum()
+        print(f"  Dropping {len(small_classes)} classes with <{min_members} samples "
+              f"({n_dropped} rows): {small_classes}")
+        df = df[~df["label_encoded"].isin(small_classes)].copy()
 
     # First split: train vs (val+test)
     train_df, temp_df = train_test_split(
