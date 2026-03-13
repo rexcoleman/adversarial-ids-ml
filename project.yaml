@@ -1,0 +1,219 @@
+# project.yaml — Adversarial ML on Network Intrusion Detection
+#
+# Drives govML generators: G1 (sweep), G5 (manifest), G6 (phase gates),
+# G13-G16 (audit pipeline).
+#
+# Usage:
+#   python /home/azureuser/ml-governance-templates/scripts/generators/generate_all.py project.yaml
+
+# ─── Project Metadata ──────────────────────────────────────────────────────────
+project:
+  name: "Adversarial ML on Network Intrusion Detection"
+  context: "FP-01 / PUB-012 — Frontier Project Pipeline"
+  profile: "supervised"
+  python_version: "3.10"
+  conda_env: "adversarial-ids"
+
+# ─── Authority Hierarchy ───────────────────────────────────────────────────────
+authority:
+  tier1: "EXECUTION_PLAN.md"                      # Research questions and phase gates
+  tier2: "docs/ADVERSARIAL_EVALUATION.md"         # Attack/defense methodology
+  tier3: "docs/EXPERIMENT_CONTRACT.md"            # Seed protocol, baseline matching
+
+# ─── Experiment Matrix ─────────────────────────────────────────────────────────
+experiments:
+  seeds: [42, 123, 456, 789, 1024]
+
+  parts:
+    - name: "baselines"
+      methods: ["random_forest", "xgboost", "mlp", "isolation_forest", "dbscan", "autoencoder"]
+      datasets: ["cicids2017"]
+      script: "scripts/run_baselines.py"
+      flags: "--method {method} --dataset {dataset} --seed {seed}"
+      output_dir: "outputs/baselines/{method}/seed_{seed}"
+
+    - name: "adversarial_unconstrained"
+      methods: ["fgsm", "pgd", "cw"]
+      datasets: ["cicids2017"]
+      script: "scripts/run_adversarial.py"
+      flags: "--attack {method} --dataset {dataset} --seed {seed} --mode unconstrained"
+      output_dir: "outputs/adversarial/unconstrained/{method}/seed_{seed}"
+
+    - name: "adversarial_constrained"
+      methods: ["fgsm", "pgd", "cw"]
+      datasets: ["cicids2017"]
+      script: "scripts/run_adversarial.py"
+      flags: "--attack {method} --dataset {dataset} --seed {seed} --mode constrained"
+      output_dir: "outputs/adversarial/constrained/{method}/seed_{seed}"
+
+    - name: "defenses"
+      methods: ["adv_training", "ensemble", "feature_squeezing"]
+      datasets: ["cicids2017"]
+      script: "scripts/run_defenses.py"
+      flags: "--defense {method} --dataset {dataset} --seed {seed}"
+      output_dir: "outputs/defenses/{method}/seed_{seed}"
+
+    - name: "adaptive_attack"
+      methods: ["fgsm", "pgd", "cw"]
+      datasets: ["cicids2017"]
+      script: "scripts/run_adversarial.py"
+      flags: "--attack {method} --dataset {dataset} --seed {seed} --mode adaptive --target defended"
+      output_dir: "outputs/adaptive/{method}/seed_{seed}"
+
+# ─── Datasets ──────────────────────────────────────────────────────────────────
+datasets:
+  - name: "cicids2017"
+    description: "Canadian Institute for Cybersecurity IDS 2017 — labeled network flows"
+    url: "https://www.unb.ca/cic/datasets/ids-2017.html"
+    local_path: "data/raw"
+    task: "multiclass classification (attack type) + anomaly detection"
+    splits:
+      train: 0.6
+      val: 0.2
+      test: 0.2
+
+# ─── Configuration Hierarchy ──────────────────────────────────────────────────
+config:
+  base: "config/base.yaml"
+  layers:
+    - pattern: "config/method_{method}.yaml"
+  resolved_output: "config_resolved.yaml"
+  locked_keys: ["seeds"]
+
+# ─── Phase Gates ───────────────────────────────────────────────────────────────
+phases:
+  - name: "Phase 0: Environment & Data"
+    checks:
+      - command: "bash scripts/verify_env.sh"
+        description: "Environment matches environment.yml"
+      - command: "python scripts/check_data_ready.py"
+        description: "CICIDS2017 downloaded and checksums match"
+
+  - name: "Phase 1: Data Validation"
+    checks:
+      - command: "python -m pytest tests/test_leakage.py -v"
+        description: "No train/test contamination"
+      - command: "python -m pytest tests/test_determinism.py -v"
+        description: "Same seed produces identical splits"
+
+  - name: "Phase 2: Baselines"
+    checks:
+      - command: "bash scripts/sweep.sh --parts baselines"
+        description: "All baseline models trained and evaluated"
+      - command: "python scripts/check_baseline_threshold.py"
+        description: "Baseline F1 ≥ 0.95 on known attack classes"
+
+  - name: "Phase 3: Adversarial Evasion"
+    checks:
+      - command: "bash scripts/sweep.sh --parts adversarial_unconstrained,adversarial_constrained"
+        description: "All adversarial attacks complete"
+      - command: "python scripts/check_evasion_findings.py"
+        description: "≥2 attack classes with detection below 50% under constrained evasion"
+
+  - name: "Phase 4: Defenses"
+    checks:
+      - command: "bash scripts/sweep.sh --parts defenses,adaptive_attack"
+        description: "All defenses trained and adaptive attacks complete"
+
+  - name: "Phase 5: Publication"
+    checks:
+      - command: "test -s FINDINGS.md"
+        description: "Findings summary is non-empty"
+      - command: "test -s docs/PUBLICATION_BRIEF.md"
+        description: "Publication brief filled"
+      - command: "python scripts/verify_manifests.py"
+        description: "All artifact hashes verified"
+
+# ─── Artifact Manifest ─────────────────────────────────────────────────────────
+artifacts:
+  run_id_pattern: "{part}_{method}_seed{seed}"
+  per_run_files:
+    - "summary.json"
+    - "config_resolved.yaml"
+    - "metrics.csv"
+  hash_algorithm: "sha256"
+  manifest_file: "artifact_manifest.json"
+
+# ─── Leakage Prevention ───────────────────────────────────────────────────────
+leakage:
+  rules:
+    - id: "LT-1"
+      description: "Preprocessing fit on train only"
+      test: "test_fit_isolation"
+    - id: "LT-2"
+      description: "Test access forbidden until final_eval"
+      test: "test_no_test_access"
+    - id: "LT-3"
+      description: "Adversarial examples generated from train/val only"
+      test: "test_adversarial_no_test_leak"
+
+# ─── AI Division of Labor ─────────────────────────────────────────────────────
+ai_governance:
+  tools:
+    - name: "Claude Code"
+      role: "Coding copilot"
+      permitted: ["code generation", "test generation", "script execution", "governance audit", "data pipeline"]
+      prohibited: ["findings interpretation", "blog prose", "figure interpretation"]
+  anti_ghostwriting: false             # Not academic — blog post is fine to co-write
+  test_set_barrier: true
+
+# ─── Audit Configuration ─────────────────────────────────────────────────────
+audit:
+  ten_simple_rules:
+    abstract_word_limit: 250
+    max_paragraph_sentences: 8
+    jargon_terms:
+      - term: "IDS"
+        definition: "Intrusion Detection System"
+      - term: "NIDS"
+        definition: "Network Intrusion Detection System"
+      - term: "FGSM"
+        definition: "Fast Gradient Sign Method"
+      - term: "PGD"
+        definition: "Projected Gradient Descent"
+      - term: "C&W"
+        definition: "Carlini & Wagner attack"
+      - term: "ART"
+        definition: "Adversarial Robustness Toolbox"
+      - term: "F1"
+        definition: "harmonic mean of precision and recall"
+      - term: "AUC"
+        definition: "Area Under the ROC Curve"
+      - term: "CICIDS"
+        definition: "Canadian Institute for Cybersecurity IDS dataset"
+    terminology_lock:
+      - canonical: "adversarial evasion"
+        reject: ["adversarial attack", "evasion attack"]
+      - canonical: "attacker-controllable features"
+        reject: ["mutable features", "perturbable features"]
+      - canonical: "detection rate"
+        reject: ["true positive rate", "recall"]
+
+  tolerances:
+    default: 0.005
+    percent: 0.1
+    count: 0
+    float: 0.001
+  metric_keywords:
+    - "accuracy"
+    - "F1"
+    - "precision"
+    - "recall"
+    - "AUC"
+    - "detection rate"
+    - "evasion rate"
+    - "false positive rate"
+
+  rubric:
+    coverage_threshold: 0.80
+    submission_threshold: 1.0
+    critical_categories:
+      - "methodology"
+      - "adversarial evaluation"
+      - "reproducibility"
+    gap_patterns:
+      - "attacker constraint justification"
+      - "feature controllability analysis"
+      - "adaptive attacker evaluation"
+      - "transferability analysis"
+      - "defense tradeoff quantification"

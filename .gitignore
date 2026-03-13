@@ -1,0 +1,43 @@
+# Data (too large for git)
+data/raw/
+data/processed/
+data/splits/
+
+# Model artifacts
+outputs/models/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Environments
+.env
+*.env
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Outputs (regenerable)
+outputs/figures/
+outputs/tables/
+
+# Config resolved
+config_resolved.yaml

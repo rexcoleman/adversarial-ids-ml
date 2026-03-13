@@ -1,0 +1,16 @@
+# Package versions at environment lock
+# Generated: 2026-03-13T21:17:55.466102
+
+art=1.17.1
+matplotlib=3.8.2
+numpy=1.24.3
+pandas=2.0.3
+pytest=7.4.4
+python=3.10.13 | packaged by conda-forge | (main, Oct 26 2023, 18:07:37) [GCC 12.3.0]
+scipy=1.11.4
+seaborn=0.13.0
+sklearn=1.3.2
+torch=2.1.2+cpu
+tqdm=4.66.1
+xgboost=2.0.3
+yaml=6.0.1
