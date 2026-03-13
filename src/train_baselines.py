@@ -94,8 +94,12 @@ def train_and_evaluate(model, model_name, X_train, y_train, X_val, y_val,
     test_f1 = f1_score(y_test, y_test_pred, average="macro", zero_division=0)
     test_acc = accuracy_score(y_test, y_test_pred)
 
+    # Filter label_names to only classes present in data
+    present_classes = sorted(set(y_test) | set(y_test_pred))
+    present_names = [label_names[i] for i in present_classes if i < len(label_names)]
     report = classification_report(
-        y_test, y_test_pred, target_names=label_names,
+        y_test, y_test_pred, labels=present_classes,
+        target_names=present_names,
         output_dict=True, zero_division=0,
     )
 
@@ -108,7 +112,7 @@ def train_and_evaluate(model, model_name, X_train, y_train, X_val, y_val,
         "test_accuracy": round(float(test_acc), 4),
         "per_class_f1": {
             name: round(float(report[name]["f1-score"]), 4)
-            for name in label_names if name in report
+            for name in present_names if name in report
         },
         "n_train": len(X_train),
         "n_val": len(X_val),

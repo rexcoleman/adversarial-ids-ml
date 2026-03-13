@@ -215,6 +215,10 @@ def create_splits(
         print(f"  Dropping {len(small_classes)} classes with <{min_members} samples "
               f"({n_dropped} rows): {small_classes}")
         df = df[~df["label_encoded"].isin(small_classes)].copy()
+        # Re-encode to contiguous labels (XGBoost requires 0..N-1)
+        unique_labels = sorted(df["label_encoded"].unique())
+        remap = {old: new for new, old in enumerate(unique_labels)}
+        df["label_encoded"] = df["label_encoded"].map(remap)
 
     # First split: train vs (val+test)
     train_df, temp_df = train_test_split(
@@ -344,12 +348,41 @@ def run_preprocessing_pipeline(seed: int = 42, sample_frac: Optional[float] = No
 
     print("\n=== Preprocessing complete ===")
 
+    # Extract arrays for downstream use
+    X_train = train_df[feature_cols].values
+    X_val = val_df[feature_cols].values
+    X_test = test_df[feature_cols].values
+    y_train = train_df["label_encoded"].values
+    y_val = val_df["label_encoded"].values
+    y_test = test_df["label_encoded"].values
+
+    # Build label names ordered by new encoded index
+    # After create_splits may remap labels, rebuild from actual data
+    unique_encoded = sorted(set(y_train) | set(y_val) | set(y_test))
+    # Use Label column which survived preprocessing
+    enc_to_name = {}
+    for split_df in [train_df, val_df, test_df]:
+        for enc_val in split_df["label_encoded"].unique():
+            name = split_df.loc[split_df["label_encoded"] == enc_val, "Label"].iloc[0]
+            enc_to_name[int(enc_val)] = name
+    label_names = [enc_to_name[i] for i in unique_encoded]
+
     return {
+        "X_train": X_train,
+        "X_val": X_val,
+        "X_test": X_test,
+        "y_train": y_train,
+        "y_val": y_val,
+        "y_test": y_test,
+        "feature_cols": feature_cols,
+        "label_names": label_names,
+        "label_map": label_map,
+        "scaler": scaler,
+        "controllable_mask": mask,
         "total_flows": len(df),
         "n_classes": len(label_map),
         "n_features": len(feature_cols),
         "n_controllable": int(mask.sum()),
-        "label_map": label_map,
     }
 
 
