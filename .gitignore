@@ -3,7 +3,8 @@ data/raw/
 data/processed/
 data/splits/
 
-# Model artifacts
+# Model artifacts (large binaries, regenerable)
+models/*.pkl
 outputs/models/
 
 # Python
