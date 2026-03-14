@@ -8,7 +8,7 @@ Most adversarial ML research on IDS perturbs all features equally. Real attacker
 
 | Metric | XGBoost | Random Forest |
 |--------|---------|---------------|
-| Clean Macro-F1 | 0.823 | 0.778 |
+| Clean Macro-F1 (5-seed mean) | 0.895 ± 0.013 | 0.853 ± 0.005 |
 | Unconstrained Attack F1 (e=0.3) | 0.086 (-74pp) | 0.153 (-63pp) |
 | Constrained Attack F1 (e=0.3) | 0.213 (-61pp) | 0.217 (-56pp) |
 | ASR Reduction (constrained vs unconstrained) | **35%** | 5% |

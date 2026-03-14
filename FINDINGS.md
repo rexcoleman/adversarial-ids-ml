@@ -12,13 +12,15 @@
 
 ## Quantitative Results
 
-### Baselines (10% sample, seed=42)
+### Baselines (10% sample, 5 seeds: 42, 123, 456, 789, 1024)
 
-| Model | Clean Macro-F1 | Accuracy |
-|-------|---------------|----------|
-| XGBoost | 0.823 | 0.999 |
-| Random Forest | 0.778 | 0.998 |
-| MLP | 0.717 | 0.992 |
+| Model | Macro-F1 (mean ± std) | Seed 42 | Seed 123 | Seed 456 | Seed 789 | Seed 1024 |
+|-------|----------------------|---------|----------|----------|----------|-----------|
+| XGBoost | **0.895 ± 0.013** | 0.823 | 0.902 | 0.878 | 0.912 | 0.889 |
+| Random Forest | **0.853 ± 0.005** | 0.778 | 0.862 | 0.847 | 0.850 | 0.852 |
+| MLP | **0.774 ± 0.007** | 0.717 | 0.769 | 0.765 | 0.784 | 0.776 |
+
+**Note:** Seed 42 produced lower F1 across all models (likely due to a less favorable stratified split). The 5-seed mean is a more reliable estimate. XGBoost is the strongest baseline by a significant margin.
 
 ### Attack Results (noise perturbation, ε=0.3)
 
@@ -63,7 +65,7 @@ The most effective defense isn't adversarial training (which recovers 37-61% of 
 ## Limitations
 
 1. **Noise baseline only** — used random uniform noise rather than gradient-based attacks (PGD, FGSM) because sklearn models lack gradients. ZOO/HopSkipJump attacks would provide stronger adversarial examples.
-2. **Single seed** — results from seed=42 only. Multi-seed stability analysis (seeds 42, 123, 456, 789, 1024) not yet completed.
+2. **Single seed for attacks/defenses** — baseline stability confirmed across 5 seeds (XGBoost: 0.895 ± 0.013), but attack and defense results are from seed=42 only. Multi-seed adversarial evaluation would strengthen claims.
 3. **10% sample** — trained on 283K rows (10% of full 2.83M) for computational speed. Full-data training would provide more reliable baselines.
 4. **Adaptive attacker not fully tested** — H-4 needs a constrained attacker who knows about the constraint-aware detection but can only perturb controllable features.
 

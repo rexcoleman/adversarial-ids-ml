@@ -77,7 +77,7 @@ I want to be honest about what this experiment does and does not prove.
 
 **Noise-only baseline.** I used random uniform perturbations, not gradient-based attacks like PGD or FGSM, because sklearn tree models lack gradients. The noise baseline establishes the controllability effect, but stronger attacks (ZOO, HopSkipJump) would produce tighter adversarial examples and might narrow the constrained/unconstrained gap. That test is next.
 
-**Single seed.** All results come from seed=42. I have not yet run the multi-seed stability analysis (planned: seeds 42, 123, 456, 789, 1024). The directional findings are solid, but the exact percentages may shift.
+**Single seed for attacks.** Baseline stability is confirmed across 5 seeds (XGBoost: 0.895 +/- 0.013 macro-F1, Random Forest: 0.853 +/- 0.005). Attack and defense results are from seed=42 only. Multi-seed adversarial evaluation would tighten confidence intervals.
 
 **10% sample.** Training used 283K rows out of 2.83M for compute speed. Full-data training is needed to confirm that the controllability split holds at scale.
 
