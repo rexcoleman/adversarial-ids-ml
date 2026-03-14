@@ -1,0 +1,98 @@
+{
+  "experiment": "baseline_classifiers",
+  "seeds": [
+    42
+  ],
+  "sample_fraction": 0.1,
+  "models": [
+    "XGBoost",
+    "MLP",
+    "RandomForest"
+  ],
+  "results": [
+    {
+      "model": "RandomForest",
+      "seed": 42,
+      "train_time_seconds": 54.11,
+      "val_macro_f1": 0.7753,
+      "test_macro_f1": 0.7783,
+      "test_accuracy": 0.9976,
+      "per_class_f1": {
+        "BENIGN": 0.9987,
+        "Bot": 0.5106,
+        "DDoS": 0.9965,
+        "DoS GoldenEye": 0.9772,
+        "DoS Hulk": 0.9968,
+        "DoS Slowhttptest": 0.964,
+        "DoS slowloris": 0.9643,
+        "FTP-Patator": 0.9907,
+        "Infiltration": 0.0,
+        "PortScan": 0.9969,
+        "SSH-Patator": 0.9865,
+        "Web Attack \ufffd Brute Force": 0.7353,
+        "Web Attack \ufffd XSS": 0.0
+      },
+      "n_train": 169659,
+      "n_val": 56553,
+      "n_test": 56553
+    },
+    {
+      "model": "XGBoost",
+      "seed": 42,
+      "train_time_seconds": 54.71,
+      "val_macro_f1": 0.8285,
+      "test_macro_f1": 0.8229,
+      "test_accuracy": 0.9989,
+      "per_class_f1": {
+        "BENIGN": 0.9995,
+        "Bot": 0.9091,
+        "DDoS": 0.9994,
+        "DoS GoldenEye": 0.99,
+        "DoS Hulk": 0.9991,
+        "DoS Slowhttptest": 0.9864,
+        "DoS slowloris": 0.9867,
+        "FTP-Patator": 0.9907,
+        "Infiltration": 0.0,
+        "PortScan": 0.9977,
+        "SSH-Patator": 0.9956,
+        "Web Attack \ufffd Brute Force": 0.7385,
+        "Web Attack \ufffd XSS": 0.1053
+      },
+      "n_train": 169659,
+      "n_val": 56553,
+      "n_test": 56553
+    },
+    {
+      "model": "MLP",
+      "seed": 42,
+      "train_time_seconds": 106.3,
+      "val_macro_f1": 0.7113,
+      "test_macro_f1": 0.7174,
+      "test_accuracy": 0.9916,
+      "per_class_f1": {
+        "BENIGN": 0.9949,
+        "Bot": 0.5106,
+        "DDoS": 0.9973,
+        "DoS GoldenEye": 0.9552,
+        "DoS Hulk": 0.966,
+        "DoS Slowhttptest": 0.9258,
+        "DoS slowloris": 0.9217,
+        "FTP-Patator": 0.9721,
+        "Infiltration": 0.0,
+        "PortScan": 0.9956,
+        "SSH-Patator": 0.9689,
+        "Web Attack \ufffd Brute Force": 0.1176,
+        "Web Attack \ufffd XSS": 0.0
+      },
+      "n_train": 169659,
+      "n_val": 56553,
+      "n_test": 56553
+    }
+  ],
+  "XGBoost_macro_f1_mean": 0.8229,
+  "XGBoost_macro_f1_std": 0.0,
+  "MLP_macro_f1_mean": 0.7174,
+  "MLP_macro_f1_std": 0.0,
+  "RandomForest_macro_f1_mean": 0.7783,
+  "RandomForest_macro_f1_std": 0.0
+}
