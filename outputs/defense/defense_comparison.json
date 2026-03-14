@@ -1,0 +1,68 @@
+[
+  {
+    "defense": "none",
+    "clean_macro_f1": 0.7783,
+    "defended_macro_f1": 0.1533,
+    "model": "RandomForest",
+    "seed": 42,
+    "recovery_ratio": 0.0
+  },
+  {
+    "defense": "adversarial_training",
+    "clean_macro_f1": 0.7351,
+    "defended_macro_f1": 0.3843,
+    "model": "RandomForest",
+    "seed": 42,
+    "recovery_ratio": 0.3696
+  },
+  {
+    "defense": "feature_squeezing",
+    "clean_macro_f1": 0.7783,
+    "defended_macro_f1": 0.1577,
+    "model": "RandomForest",
+    "seed": 42,
+    "recovery_ratio": 0.007
+  },
+  {
+    "defense": "constraint_aware_detection",
+    "clean_macro_f1": 0.7783,
+    "defended_macro_f1": 0.7783,
+    "model": "RandomForest",
+    "seed": 42,
+    "detection_rate": 1.0,
+    "recovery_ratio": 1.0
+  },
+  {
+    "defense": "none",
+    "clean_macro_f1": 0.8229,
+    "defended_macro_f1": 0.0864,
+    "model": "XGBoost",
+    "seed": 42,
+    "recovery_ratio": 0.0
+  },
+  {
+    "defense": "adversarial_training",
+    "clean_macro_f1": 0.8254,
+    "defended_macro_f1": 0.5341,
+    "model": "XGBoost",
+    "seed": 42,
+    "recovery_ratio": 0.6079
+  },
+  {
+    "defense": "feature_squeezing",
+    "clean_macro_f1": 0.8229,
+    "defended_macro_f1": 0.0856,
+    "model": "XGBoost",
+    "seed": 42,
+    "recovery_ratio": -0.0011
+  },
+  {
+    "defense": "constraint_aware_detection",
+    "clean_macro_f1": 0.8229,
+    "defended_macro_f1": 0.8229,
+    "model": "XGBoost",
+    "seed": 42,
+    "detection_rate": 1.0,
+    "recovery_ratio": 1.0
+  }
+]

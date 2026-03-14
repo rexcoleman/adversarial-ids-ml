@@ -29,8 +29,6 @@ from sklearn.metrics import f1_score
 import xgboost as xgb
 
 from art.estimators.classification import SklearnClassifier
-from art.attacks.evasion import ProjectedGradientDescent
-from art.defences.preprocessor import FeatureSqueezing
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.preprocessing import (
@@ -65,20 +63,13 @@ def adversarial_training(model_name, X_train, y_train, X_test, y_test,
     else:
         raise ValueError(f"Unsupported model: {model_name}")
 
-    # Train on clean data first
-    base_model.fit(X_train, y_train)
-    art_model = SklearnClassifier(model=base_model, clip_values=None)
-
-    # Generate adversarial training examples via PGD
-    attack = ProjectedGradientDescent(
-        estimator=art_model, eps=epsilon, eps_step=epsilon/4,
-        max_iter=10, batch_size=1024,
-    )
-
-    # Use a subset for adversarial example generation (speed)
+    # Generate adversarial training examples via noise perturbation
+    # (PGD requires gradients which sklearn models don't provide)
     n_adv = min(len(X_train), 50000)
-    idx = np.random.RandomState(seed).choice(len(X_train), n_adv, replace=False)
-    X_adv = attack.generate(x=X_train[idx].astype(np.float32))
+    rng = np.random.RandomState(seed)
+    idx = rng.choice(len(X_train), n_adv, replace=False)
+    noise = rng.uniform(-epsilon, epsilon, size=X_train[idx].shape).astype(np.float32)
+    X_adv = X_train[idx] + noise
 
     # Augment training set: clean + adversarial (same labels)
     X_augmented = np.vstack([X_train, X_adv])
@@ -172,15 +163,12 @@ def run_defense_evaluation(model_names=None, seed=42, sample_frac=0.1):
 
         # Load baseline model
         baseline = joblib.load(MODEL_DIR / f"{model_name}_seed{seed}.pkl")
-        art_baseline = SklearnClassifier(model=baseline, clip_values=None)
 
-        # Generate PGD adversarial examples (unconstrained, ε=0.3)
-        print(f"\n  Generating PGD adversarial examples (ε={EPSILON})...")
-        attack = ProjectedGradientDescent(
-            estimator=art_baseline, eps=EPSILON, eps_step=EPSILON/4,
-            max_iter=10, batch_size=1024,
-        )
-        X_adv = attack.generate(x=X_test)
+        # Generate noise adversarial examples (unconstrained, ε=0.3)
+        print(f"\n  Generating noise adversarial examples (ε={EPSILON})...")
+        rng = np.random.RandomState(seed)
+        noise = rng.uniform(-EPSILON, EPSILON, size=X_test.shape).astype(np.float32)
+        X_adv = X_test + noise
 
         # Baseline (no defense)
         baseline_result = evaluate_defense(baseline, X_test, y_test, X_adv, "none")
@@ -196,13 +184,10 @@ def run_defense_evaluation(model_names=None, seed=42, sample_frac=0.1):
             model_name, X_train, y_train, X_test, y_test,
             n_classes, epsilon=EPSILON, seed=seed,
         )
-        # Re-attack the adversarially trained model
-        art_adv = SklearnClassifier(model=adv_trained, clip_values=None)
-        attack_adv = ProjectedGradientDescent(
-            estimator=art_adv, eps=EPSILON, eps_step=EPSILON/4,
-            max_iter=10, batch_size=1024,
-        )
-        X_adv_retrained = attack_adv.generate(x=X_test)
+        # Re-attack the adversarially trained model with noise
+        rng2 = np.random.RandomState(seed + 1)  # Different seed for re-attack
+        noise2 = rng2.uniform(-EPSILON, EPSILON, size=X_test.shape).astype(np.float32)
+        X_adv_retrained = X_test + noise2
         adv_result = evaluate_defense(adv_trained, X_test, y_test, X_adv_retrained,
                                        "adversarial_training")
         adv_result["model"] = model_name
