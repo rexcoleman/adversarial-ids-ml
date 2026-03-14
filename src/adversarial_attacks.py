@@ -29,7 +29,7 @@ import joblib
 from sklearn.metrics import f1_score, accuracy_score
 
 from art.estimators.classification import SklearnClassifier
-from art.attacks.evasion import FastGradientMethod, ProjectedGradientDescent
+from art.attacks.evasion import HopSkipJump, ZooAttack
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.preprocessing import (
@@ -44,6 +44,9 @@ MODEL_DIR = Path("models")
 # Attack budget schedule (epsilon values)
 EPSILON_SCHEDULE = [0.01, 0.05, 0.1, 0.2, 0.3, 0.5]
 
+# For decision-based attacks (slow), use smaller eval subset
+ATTACK_EVAL_SIZE = 2000  # samples per attack evaluation (balanced: covers rare classes)
+
 
 def load_trained_model(model_name: str, seed: int):
     """Load a trained baseline model."""
@@ -53,40 +56,93 @@ def load_trained_model(model_name: str, seed: int):
     return joblib.load(path)
 
 
-def wrap_sklearn_model(model, n_features: int, n_classes: int):
-    """Wrap sklearn model for ART compatibility."""
-    clip_values = (0.0, 1.0)  # Data is scaled but may exceed [0,1]
-    return SklearnClassifier(model=model, clip_values=None)
+def wrap_model(model, n_features: int, n_classes: int):
+    """Wrap model for ART compatibility."""
+    try:
+        return SklearnClassifier(model=model, clip_values=None)
+    except TypeError:
+        # XGBoost not recognized as sklearn model — use BlackBoxClassifier
+        from art.estimators.classification import BlackBoxClassifierNeuralNetwork
+
+        def predict_fn(x):
+            """Return class probabilities."""
+            proba = model.predict_proba(x)
+            return proba
+
+        return BlackBoxClassifierNeuralNetwork(
+            predict_fn=predict_fn,
+            input_shape=(n_features,),
+            nb_classes=n_classes,
+            clip_values=None,
+        )
 
 
-def run_attack(art_model, X_test, y_test, epsilon, attack_type="fgsm",
+def run_attack(art_model, X_test, y_test, epsilon, attack_type="zoo",
                feature_mask=None):
-    """Run adversarial attack and return metrics."""
-    if attack_type == "fgsm":
-        attack = FastGradientMethod(
-            estimator=art_model,
-            eps=epsilon,
-            batch_size=1024,
+    """Run adversarial attack and return metrics.
+
+    For sklearn models (RF, XGBoost), we use decision-based or zeroth-order
+    attacks since these models are not differentiable.
+
+    Attack types:
+      - zoo: Zeroth Order Optimization (estimates gradients via finite differences)
+      - hsj: HopSkipJump (decision-based, no gradients needed)
+      - noise: Random uniform noise baseline (sanity check)
+    """
+    # Subsample test set for speed (decision-based attacks are slow)
+    n_eval = min(ATTACK_EVAL_SIZE, len(X_test))
+    rng = np.random.RandomState(42)
+    idx = rng.choice(len(X_test), n_eval, replace=False)
+    X_eval = X_test[idx]
+    y_eval = y_test[idx]
+
+    if attack_type == "zoo":
+        attack = ZooAttack(
+            classifier=art_model,
+            confidence=0.0,
+            learning_rate=1e-1,
+            max_iter=20,
+            binary_search_steps=3,
+            initial_const=1e-3,
+            abort_early=True,
+            nb_parallel=1,
+            batch_size=1,
+            variable_h=0.01,
         )
-    elif attack_type == "pgd":
-        attack = ProjectedGradientDescent(
-            estimator=art_model,
-            eps=epsilon,
-            eps_step=epsilon / 4,
-            max_iter=10,
-            batch_size=1024,
+    elif attack_type == "hsj":
+        attack = HopSkipJump(
+            classifier=art_model,
+            targeted=False,
+            max_iter=20,
+            max_eval=100,
+            init_eval=10,
         )
+    elif attack_type == "noise":
+        # Random noise baseline — not a real attack, sanity check
+        pass
     else:
         raise ValueError(f"Unknown attack type: {attack_type}")
 
-    # Apply feature mask for constrained attacks
-    if feature_mask is not None:
-        attack.set_params(mask=feature_mask)
-
     # Generate adversarial examples
     start = time.time()
-    X_adv = attack.generate(x=X_test)
+    if attack_type == "noise":
+        noise = rng.uniform(-epsilon, epsilon, size=X_eval.shape).astype(np.float32)
+        if feature_mask is not None:
+            noise = noise * feature_mask  # Only perturb controllable features
+        X_adv = X_eval + noise
+    else:
+        X_adv = attack.generate(x=X_eval.astype(np.float32))
+        # Clip perturbation to epsilon ball
+        perturbation = X_adv - X_eval
+        perturbation = np.clip(perturbation, -epsilon, epsilon)
+        if feature_mask is not None:
+            perturbation = perturbation * feature_mask
+        X_adv = X_eval + perturbation
     attack_time = time.time() - start
+
+    # Use full eval set for metrics
+    X_test = X_eval
+    y_test = y_eval
 
     # Evaluate on adversarial examples
     y_pred_clean = art_model.predict(X_test).argmax(axis=1)
@@ -171,7 +227,7 @@ def run_adversarial_evaluation(model_names=None, seeds=None, sample_frac=0.1,
     if seeds is None:
         seeds = [42]
     if attack_types is None:
-        attack_types = ["fgsm", "pgd"]
+        attack_types = ["zoo", "noise"]
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -199,7 +255,7 @@ def run_adversarial_evaluation(model_names=None, seeds=None, sample_frac=0.1,
             # Load trained model
             model = load_trained_model(model_name, seed)
             n_classes = len(data["label_names"])
-            art_model = wrap_sklearn_model(model, X_test.shape[1], n_classes)
+            art_model = wrap_model(model, X_test.shape[1], n_classes)
 
             for attack_type in attack_types:
                 for epsilon in EPSILON_SCHEDULE:
@@ -265,7 +321,7 @@ if __name__ == "__main__":
                         help="Models to attack")
     parser.add_argument("--seeds", type=int, nargs="+", default=[42])
     parser.add_argument("--sample-frac", type=float, default=0.1)
-    parser.add_argument("--attacks", nargs="+", default=["fgsm", "pgd"])
+    parser.add_argument("--attacks", nargs="+", default=["zoo", "noise"])
     args = parser.parse_args()
     run_adversarial_evaluation(
         model_names=args.models, seeds=args.seeds,

@@ -55,8 +55,8 @@ This contract defines how metrics are computed, thresholds are set, and evaluati
 
 | Dataset | Task | Primary Metrics | Computation |
 |---------|------|-----------------|-------------|
-| {{DATASET_1_NAME}} | {{DATASET_1_TASK}} | {{DATASET_1_PRIMARY_METRICS}} | {{DATASET_1_METRIC_FUNCTION}} |
-| {{DATASET_2_NAME}} | {{DATASET_2_TASK}} | {{DATASET_2_PRIMARY_METRICS}} | {{DATASET_2_METRIC_FUNCTION}} |
+| CICIDS2017 | Multi-class classification (15 classes) | Macro-F1, Accuracy, Per-class F1, Attack Success Rate (ASR) | `f1_score(average='macro', zero_division=0)` |
+| CICIDS2017 (adversarial) | Evasion attack evaluation | ASR, F1 drop, L2 perturbation norm, Recovery ratio | `(y_pred_adv[correct] != y_true[correct]).mean()` |
 
 **Rules:**
 - Primary metrics are non-negotiable. They MUST appear in every summary and the final evaluation.
@@ -69,9 +69,9 @@ This contract defines how metrics are computed, thresholds are set, and evaluati
 
 ## 3) Primary Optimization Objective
 
-All experiments optimize: **{{OPTIMIZATION_OBJECTIVE}}**
+All experiments optimize: **Macro-F1 on validation set**
 
-*(e.g., "validation loss" — all parts use validation loss as the objective for comparisons, hyperparameter selection, and convergence analysis.)*
+Macro-F1 is chosen over accuracy because CICIDS2017 has 80.3% BENIGN majority — accuracy is misleading (a majority-class classifier achieves 80.3% accuracy). Macro-F1 weights all 15 classes equally, exposing failures on rare attack types.
 
 ---
 
