@@ -52,10 +52,11 @@ This contract defines the experimental protocol for **Adversarial ML on Network 
 
 | Part | Description | Datasets | Methods | Budget Type |
 |------|-------------|----------|---------|-------------|
-| *(e.g.)* Part 1 | *(e.g.)* Randomized Optimization | *(e.g.)* Adult + Wine | *(e.g.)* RHC, SA, GA | func_evals |
-| *(e.g.)* Part 2 | *(e.g.)* Optimizer Ablations | *(e.g.)* Adult only | *(e.g.)* 7 optimizers | grad_evals |
-| *(e.g.)* Part 3 | *(e.g.)* Regularization Study | *(e.g.)* Adult only | *(e.g.)* 4 techniques + combo | grad_evals |
-| *(add parts)* | | | | |
+| Part 1 (Phase 1) | EDA + Hypothesis Registration | CICIDS2017 | Correlation analysis, class distribution, feature controllability split | N/A |
+| Part 2a | Baseline Training | CICIDS2017 (10% sample) | RF, XGBoost, MLP | wall_clock |
+| Part 2b | Unconstrained Adversarial Attacks | CICIDS2017 (10% sample) | Noise, ZOO, HopSkipJump @ 6 ε values | func_evals |
+| Part 2c | Constrained Adversarial Attacks | CICIDS2017 (10% sample) | Same as 2b, feature mask applied | func_evals |
+| Part 2d | Defense Evaluation | CICIDS2017 (10% sample) | Adversarial training, feature squeezing, constraint-aware detection | wall_clock |
 
 ### 1.2 Cross-Part Constraints
 
@@ -63,21 +64,21 @@ Document hard rules that constrain relationships between parts:
 
 | Constraint | Rule | Enforcement |
 |-----------|------|-------------|
-| *(e.g.)* Dataset lock | Parts 2-3 run on {{DATASET_NAME}} only | Script validates `--dataset` flag |
-| *(e.g.)* Architecture lock | Backbone unchanged across parts | Config diff assertion at phase gate |
-| *(e.g.)* HP inheritance | Part 3 uses locked best HPs from Part 2 | Config loaded from Part 2 best run |
-| *(add rows)* | | |
+| Dataset lock | All parts use CICIDS2017 only | Single dataset in preprocessing pipeline |
+| Model lock | Parts 2b-2d use models trained in Part 2a (no retraining except adversarial training defense) | Models loaded from `models/` via `joblib.load` |
+| Seed lock | All parts share seed list [42, 123, 456, 789, 1024] | `set_seed(seed)` called before every experiment |
+| Feature mask lock | Constrained attacks use identical 57-feature mask across all models/seeds | `get_controllable_feature_mask()` from preprocessing.py |
+| ε schedule lock | All attack evaluations use [0.01, 0.05, 0.1, 0.2, 0.3, 0.5] | `EPSILON_SCHEDULE` constant in adversarial_attacks.py |
 
 ### 1.3 Cross-Part Dependency Graph
 
 ```
-Part 1 ──→ Part 4 (best RO algorithm)
-Part 2 ──→ Part 3 (locked optimizer HPs)
-Part 2 ──→ Part 4 (locked optimizer HPs)
-Part 3 ──→ Part 4 (best regularization combo)
+Part 1 (EDA) ──→ Part 2a (baseline training — informed by EDA feature analysis)
+Part 2a ──→ Part 2b (unconstrained attacks — uses trained models)
+Part 2a ──→ Part 2c (constrained attacks — uses trained models + feature mask from Part 1)
+Part 2b ──→ Part 2d (defense eval — compares against unconstrained attack baseline)
+Part 2c ──→ Part 2d (defense eval — constrained attack results inform H-4)
 ```
-
-*(Adapt this graph to your project's part dependencies. An arrow means "results from the source part feed into the target part.")*
 
 ---
 
@@ -85,7 +86,7 @@ Part 3 ──→ Part 4 (best regularization combo)
 
 ### 2.1 Budget Source
 
-All budgets are defined in `{{BUDGET_CONFIG_FILE}}`. Scripts read values at runtime. No hardcoded budgets in code.
+Budgets are defined per-script as constants (no external config file — project scope doesn't warrant it). Wall-clock is the primary budget constraint (Azure B2ms, 2 vCPUs, 8 GiB RAM).
 
 ### 2.2 Budget Types
 
@@ -147,7 +148,7 @@ Where experiments in different parts are compared (e.g., regularization vs basel
 
 *(Reference DATA_CONTRACT for full details.)*
 
-Split files: `data/splits/{{DATASET_NAME}}/split_seed{{SEED}}.json`
+Split files: generated in-memory by `src/preprocessing.py` via stratified train/val/test split (70/15/15). Rare classes (<3 samples) dropped and labels remapped to contiguous integers.
 
 ### 3.2 Test-Split Access Policy
 
@@ -272,35 +273,63 @@ Every run MUST log:
 
 ---
 
-## 6-N) Per-Part Protocols
+## 6) Per-Part Protocols
 
-*(Create one section per experimental part. Each section should define:)*
+### Part 2a: Baseline Training
 
-### Part {{N}}: {{PART_NAME}}
+**Goal:** Train IDS classifiers on clean CICIDS2017 data to establish clean-performance baselines.
 
-**Goal:** *(One-sentence description)*
+**Methods:** Random Forest, XGBoost, MLP (sklearn)
 
-**Methods:** *(List all methods/algorithms to be compared)*
-
-**Budget:** `{{BUDGET_CONFIG_KEY}}` from `{{BUDGET_CONFIG_FILE}}`
+**Budget:** Wall-clock ~5 min per model per seed at 10% sample (283K rows)
 
 **Protocol:**
-1. *(Step-by-step procedure)*
-2. *(What to initialize, what to vary, what to hold constant)*
-3. *(What to log beyond standard metrics)*
+1. Load preprocessed data via `run_preprocessing_pipeline(seed=seed, sample_frac=0.1)`
+2. Train each model with fixed hyperparameters (no tuning — these are baselines)
+3. Evaluate on test set: macro-F1, accuracy, per-class classification report
+4. Save models to `models/{ModelName}_seed{seed}.pkl`
 
-**Operator Disclosures:** *(For each method, list what hyperparameters/settings must be reported)*
+**Operator Disclosures:**
 
 | Method | Required Disclosures |
 |--------|---------------------|
-| *(e.g.)* RHC | Restart policy, step-size schedule |
-| *(e.g.)* SA | Initial temperature, decay factor, cooling schedule |
-| *(e.g.)* GA | Population size, selection, crossover, mutation rate, elitism |
+| Random Forest | n_estimators=100, max_depth=20, min_samples_leaf=5 |
+| XGBoost | n_estimators=100, max_depth=8, learning_rate=0.1, eval_metric=mlogloss |
+| MLP | hidden_layer_sizes=(256,128,64), max_iter=200, early_stopping=True |
+
+### Part 2b-c: Adversarial Attacks
+
+**Goal:** Measure IDS vulnerability to adversarial perturbation under unconstrained (2b) and constrained (2c) threat models.
+
+**Methods:** Random noise baseline (primary), ZOO, HopSkipJump (available but slow)
+
+**Budget:** 2,000-sample eval subset per attack × 6 ε values × 2 constraint modes × 2 models = 48 evaluations
+
+**Protocol:**
+1. Load trained baseline model from Part 2a
+2. Wrap model via ART (`SklearnClassifier` for RF, `BlackBoxClassifierNeuralNetwork` for XGBoost)
+3. For each ε: generate adversarial examples, apply feature mask (constrained only), evaluate
+4. Save results to `outputs/adversarial/{unconstrained,constrained}_results.json`
+
+### Part 2d: Defense Evaluation
+
+**Goal:** Compare three defense strategies and measure F1 recovery ratio.
+
+**Methods:** Adversarial training, feature squeezing (4-bit), constraint-aware detection
+
+**Budget:** Adversarial training retrains model (~5 min each); other defenses are inference-only
+
+**Protocol:**
+1. Load baseline model + generate noise adversarial examples at ε=0.3
+2. Adversarial training: augment training data with 50K noise-perturbed samples, retrain
+3. Feature squeezing: quantize adversarial inputs to 4-bit depth
+4. Constraint-aware detection: flag samples where defender-observable features changed
+5. Evaluate all defenses: macro-F1 on defended examples, compute recovery ratio
+6. Save to `outputs/defense/defense_comparison.json`
 
 **Constraints:**
-- *(e.g.)* All methods must start from the same init weights
-- *(e.g.)* Architecture must not be modified (except for Part 3 regularization modules)
-- *(e.g.)* Locked hyperparameters from prior parts must not be retuned
+- All defenses evaluated against same noise attack (ε=0.3) for fair comparison
+- Adversarial training uses different RNG seed (seed+1) for re-attack to avoid overfitting to training perturbations
 
 ---
 
@@ -308,14 +337,13 @@ Every run MUST log:
 
 ```
 outputs/
-+-- init_weights/                          # Saved initial state_dicts
-+-- part1/{{DATASET}}/{{METHOD}}/seed_*/   # Part 1 outputs
-+-- part2/{{DATASET}}/{{METHOD}}/seed_*/   # Part 2 outputs
-+-- part3/{{DATASET}}/{{METHOD}}/seed_*/   # Part 3 outputs
-+-- sanity_checks/                         # Sanity check results
-+-- final_eval/seed_*/                     # Final test evaluation
-+-- figures/                               # Generated figures
-+-- tables/                                # Generated tables
++-- eda/                                   # EDA artifacts (summary.json, plots)
++-- baselines/                             # Baseline training results per seed
++-- adversarial/                           # Attack results (unconstrained + constrained JSON)
++-- defense/                               # Defense comparison results + recovery plots
++-- provenance/                            # versions.txt, git_commit_sha.txt, run_log.json
+models/
++-- {ModelName}_seed{seed}.pkl             # Trained baseline models
 ```
 
 ### Per-Run Output Files
@@ -333,65 +361,41 @@ Every run directory MUST contain:
 
 ---
 
-## {{N+2}}) Pipeline Composition Protocol
+## 8) Pipeline Composition Protocol
 
-When an experiment part composes results from prior parts (e.g., "use best optimizer from Part 2 + best regularization from Part 3 + best RO algorithm from Part 1"), the following rules apply.
+Parts compose linearly: 2a → 2b/2c → 2d. No complex multi-part composition required.
 
-### Composition Invariants
-
-1. **Locked selections:** Each component MUST use the exact configuration from the prior part's best run. No retuning of previously locked hyperparameters.
-2. **Configuration trace:** The composed run's `config_resolved.yaml` MUST include provenance for each component:
-
-```yaml
-composition:
-  optimizer:
-    source_part: 2
-    source_run_id: "part2_adam_seed42"
-    locked_params: {lr: 0.001, beta1: 0.9, beta2: 0.999}
-  regularization:
-    source_part: 3
-    source_run_id: "part3_best_combo_seed42"
-    locked_params: {dropout: 0.3, l2_lambda: 0.001}
-  fine_tuning:
-    source_part: 1
-    source_method: "sa"
-    locked_params: {init_temp: 1.0, decay: 0.99}
-```
-
-3. **Budget constraints:** Composition parts may have separate budgets for each phase (e.g., gradient training budget + RO fine-tuning budget). Each phase's budget MUST be declared separately.
-4. **Seed consistency:** Seeds, hardware class, data splits, and batch size MUST match earlier parts.
-
-### Composition Exit Gate Additions
-
-- [ ] Each component traces to a specific prior part run ID
-- [ ] No hyperparameter was retuned from its locked value
-- [ ] Phase-specific budgets are within limits
-- [ ] Results are comparable to prior parts (same metrics, same evaluation protocol)
+**Composition rule:** Defense evaluation (Part 2d) loads models from Part 2a and generates its own adversarial examples. Attack results from Parts 2b-2c are used for comparison only, not as direct inputs to Part 2d.
 
 ---
 
-## {{N+3}}) Exit Gates
+## 9) Exit Gates
 
-Each experimental part has an exit gate that MUST pass before proceeding.
+### Part 2a Exit Gate
+- [x] All 3 models trained for seed 42
+- [ ] All 3 models trained for seeds 123, 456, 789, 1024 (in progress)
+- [x] Macro-F1 > 0.70 for all models (XGB: 0.823, RF: 0.778, MLP: 0.717)
+- [x] Models saved to `models/` directory
 
-### Exit Gate Template
+### Part 2b-c Exit Gate
+- [x] Unconstrained + constrained results at all 6 ε values for RF and XGBoost
+- [x] ASR computed for all conditions
+- [x] Budget curves plotted
+- [x] Results saved to `outputs/adversarial/`
 
-- [ ] All methods complete for all seeds
-- [ ] Budget usage is consistent across methods (within tolerance)
-- [ ] No over-budget runs (or properly flagged and excluded)
-- [ ] Required metrics logged in every `summary.json`
-- [ ] `metrics.csv` has expected columns and row counts
-- [ ] Operator disclosures present in `config_resolved.yaml`
-- [ ] Init-weight verification passed (forward-pass match within tolerance)
-- [ ] *(Part-specific checks)*
+### Part 2d Exit Gate
+- [x] All 3 defenses evaluated for RF and XGBoost
+- [x] Recovery ratios computed
+- [x] Results saved to `outputs/defense/defense_comparison.json`
+- [x] Defense comparison plot generated
 
 ---
 
-## {{N+4}}) Change Control Triggers
+## 10) Change Control Triggers
 
 The following changes require a `CONTRACT_CHANGE` commit:
 
-- Compute budgets (any value in `{{BUDGET_CONFIG_FILE}}`)
+- Compute budgets
 - Method list for any part
 - Initialization protocol
 - Output schemas (metrics.csv, summary.json, config_resolved.yaml)
@@ -402,59 +406,6 @@ The following changes require a `CONTRACT_CHANGE` commit:
 
 ---
 
-## Appendix A: Sequential / RL Experiment Protocol (Optional)
+## Appendix A: RL Protocol
 
-> **Activation:** Include this appendix when your project involves reinforcement learning, sequential
-> decision-making, or episode-based experiments. Delete if not applicable.
-
-### A.1 Episode-Based Budget Accounting
-
-| Budget Type | Unit | Counting Rule |
-|------------|------|---------------|
-| `episodes` | Complete episodes | Each reset → terminal transition counts as ONE episode |
-| `env_steps` | Environment steps | Each `env.step()` call counts as ONE step |
-| `wall_clock` | Seconds | Cumulative wall-clock (always reported alongside primary budget) |
-
-### A.2 Environment Specification
-
-The environment MUST be fully specified in a companion [ENVIRONMENT_SPEC](ENVIRONMENT_SPEC.tmpl.md) document (if available) or in this section:
-
-| Property | Value |
-|----------|-------|
-| **Environment** | {{ENV_NAME}} |
-| **State space** | {{STATE_SPACE_DESCRIPTION}} |
-| **Action space** | {{ACTION_SPACE_DESCRIPTION}} |
-| **Reward function** | {{REWARD_DESCRIPTION}} |
-| **Episode termination** | {{TERMINATION_CONDITION}} |
-| **Max episode length** | {{MAX_EPISODE_STEPS}} |
-
-### A.3 Policy Evaluation Protocol
-
-- **Evaluation frequency:** Every {{EVAL_INTERVAL_EPISODES}} training episodes
-- **Evaluation method:** {{EVAL_EPISODES}} episodes with greedy/deterministic policy (no exploration noise)
-- **Metrics logged per evaluation:** mean return, std return, mean episode length, success rate (if applicable)
-
-### A.4 Reproducibility Requirements
-
-- Environment seed MUST be set via `env.reset(seed=seed)` at the start of each episode
-- For stochastic environments, evaluation MUST use a fixed set of seeds separate from training seeds
-- Random exploration noise MUST be seeded deterministically
-
-### A.5 RL-Specific Logging
-
-Every run's `metrics.csv` MUST include:
-
-```
-episode,env_steps,train_return,eval_mean_return,eval_std_return,eval_mean_length,wall_clock_sec
-```
-
-Every run's `summary.json` MUST include:
-```json
-{
-  "budget_allocated": {"episodes": null, "env_steps": null},
-  "budget_used": {"episodes": null, "env_steps": null},
-  "best_eval_return": null,
-  "best_eval_episode": null,
-  "total_env_steps": null
-}
-```
+> **Not applicable.** This is a supervised classification project. Appendix deleted.

@@ -206,9 +206,10 @@ def create_splits(
     """
     assert abs(train_ratio + val_ratio + test_ratio - 1.0) < 1e-6
 
-    # Drop classes with fewer than 3 members (can't stratify with <2 per split)
+    # Drop classes with fewer than 7 members — need ≥2 per split after 70/15/15
+    # (with 3 samples, the val+test portion can get only 1, breaking stratified split)
     class_counts = df["label_encoded"].value_counts()
-    min_members = 3  # need at least 1 per split
+    min_members = 7
     small_classes = class_counts[class_counts < min_members].index.tolist()
     if small_classes:
         n_dropped = df["label_encoded"].isin(small_classes).sum()

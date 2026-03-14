@@ -31,28 +31,27 @@
 
 Fill in all `{{PLACEHOLDER}}` values before use. Delete this section when customization is complete.
 
-| Placeholder | Description | Example |
-|-------------|-------------|---------|
-| `Adversarial ML on Network Intrusion Detection` | Project name | Sentiment Analysis Benchmark |
-| `{{REPORT_LINK}}` | Read-only link to report | Overleaf read-only URL, Google Docs viewer link |
-| `{{REPO_URL}}` | Repository URL | GitHub repo URL |
-| `{{FINAL_COMMIT_SHA}}` | Git SHA of the final delivery commit | abc1234def5678 |
-| `{{PLATFORM_OS}}` | Operating system | Ubuntu 20.04 / macOS 14.0 / Windows 11 |
-| `{{PLATFORM_CPU}}` | CPU specification | 8 vCPU AMD EPYC / Apple M2 / Intel i7-12700 |
-| `{{PLATFORM_RAM}}` | RAM | 32 GiB |
-| `{{PLATFORM_GPU}}` | GPU requirement | Not required (CPU-only) / NVIDIA RTX 3090 |
-| `{{ENV_MANAGER}}` | Environment manager | mamba / conda / pip+venv |
-| `{{ENV_FILE}}` | Environment definition file | environment.yml / requirements.txt |
-| `{{ENV_NAME}}` | Environment name | my-ml-project |
-| `{{PYTHON_VERSION}}` | Python version | 3.10.13 |
-| `42` | Default random seed | 42 |
-| `[42, 123, 456, 789, 1024]` | All seeds used | [42, 123, 456, 789, 1024] |
-| `{{DATA_SOURCE}}` | Where to obtain data | Kaggle, UCI ML Repository, Canvas |
-| `{{DATASET_N_FILE}}` | Dataset filename | adult.csv |
-| `{{DATASET_N_DESCRIPTION}}` | Dataset brief | Adult Income (45,222 rows x 15 columns) |
-| `EXECUTION_PLAN.md` | Tier 1 authority document | Project requirements spec |
-| `docs/ADVERSARIAL_EVALUATION.md` | Tier 2 authority document | FAQ or clarifications document |
-| `docs/EXPERIMENT_CONTRACT.md` | Tier 3 authority document | Course TAs' Piazza clarifications |
+| Placeholder | Value |
+|-------------|-------|
+| Project name | Adversarial ML on Network Intrusion Detection |
+| Report link | *(generated from outputs/ after full reproduction)* |
+| Repository URL | https://github.com/rexcoleman/adversarial-ids-ml |
+| Final commit SHA | `2dc19126293f67827ff9d02fcc3d2894de908984` |
+| Platform OS | Ubuntu 20.04 (Linux 5.15.0-1089-azure) |
+| Platform CPU | Azure B2ms — 2 vCPUs |
+| Platform RAM | 8 GiB |
+| Platform GPU | Not required (CPU-only) |
+| Environment manager | conda |
+| Environment file | environment.yml |
+| Environment name | adversarial-ids |
+| Python version | 3.10.13 |
+| Default seed | 42 |
+| All seeds | [42, 123, 456, 789, 1024] |
+| Data source | https://www.unb.ca/cic/datasets/ids-2017.html (registration required) |
+| Dataset | CICIDS2017 (2,827,876 flows, 8 CSV files, 78 features, 15 classes) |
+| Tier 1 authority | EXECUTION_PLAN.md |
+| Tier 2 authority | docs/ADVERSARIAL_EVALUATION.md |
+| Tier 3 authority | docs/EXPERIMENT_CONTRACT.md |
 
 ---
 
@@ -68,18 +67,18 @@ This document enables anyone to reproduce **all** artifacts for the **Adversaria
 
 | Item | Value |
 |------|-------|
-| **Report (read-only)** | {{REPORT_LINK}} |
-| **Repository** | {{REPO_URL}} |
+| **Report (read-only)** | *(generated from `outputs/` after full reproduction)* |
+| **Repository** | https://github.com/rexcoleman/adversarial-ids-ml |
 | **Branch** | `main` |
-| **Final commit SHA** | `{{FINAL_COMMIT_SHA}}` |
+| **Final commit SHA** | `2dc19126293f67827ff9d02fcc3d2894de908984` |
 
 **Verification:**
 
 ```bash
-git clone {{REPO_URL}}
-cd {{PROJECT_DIR}}
+git clone https://github.com/rexcoleman/adversarial-ids-ml
+cd adversarial-ids-ml
 git log --oneline -1
-# Expected: {{FINAL_COMMIT_SHA}}
+# Expected: 2dc1912
 ```
 
 ---
@@ -88,11 +87,11 @@ git log --oneline -1
 
 | Resource | Specification | Notes |
 |----------|--------------|-------|
-| **OS** | {{PLATFORM_OS}} | *(tested platform)* |
-| **CPU** | {{PLATFORM_CPU}} | *(minimum for reasonable runtime)* |
-| **RAM** | {{PLATFORM_RAM}} | *(minimum to avoid OOM)* |
-| **GPU** | {{PLATFORM_GPU}} | *(required or optional)* |
-| **Disk** | *(estimated)* | *(space for data + outputs)* |
+| **OS** | Ubuntu 20.04 (Linux 5.15.0-1089-azure) | *(tested platform)* |
+| **CPU** | Azure B2ms — 2 vCPUs (Intel Xeon) | *(minimum for reasonable runtime)* |
+| **RAM** | 8 GiB | *(minimum to avoid OOM)* |
+| **GPU** | Not required (CPU-only) | *(torch 2.1.2+cpu)* |
+| **Disk** | ~2 GB | *(8 CSV files + outputs)* |
 
 **CPU reproducibility rule:** All final report artifacts MUST be reproducible on CPU. GPU may be used for exploration but MUST NOT be required for delivery artifacts.
 
@@ -102,8 +101,8 @@ git log --oneline -1
 
 ```bash
 # 1. Create environment
-{{ENV_MANAGER}} env create -f {{ENV_FILE}}
-conda activate {{ENV_NAME}}
+conda env create -f environment.yml
+conda activate adversarial-ids
 
 # 2. Verify environment
 bash scripts/verify_env.sh
@@ -114,9 +113,17 @@ bash scripts/verify_env.sh
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| python | {{PYTHON_VERSION}} | Runtime |
-| *(package)* | *(version)* | *(purpose)* |
-| *(add rows from {{ENV_FILE}})* | | |
+| python | 3.10.13 | Runtime |
+| scikit-learn | 1.3.2 | Baseline classifiers (RF, SVM, MLP) |
+| xgboost | 2.0.3 | Gradient-boosted tree baseline |
+| adversarial-robustness-toolbox | 1.17.1 | Adversarial attack + defense framework |
+| torch | 2.1.2+cpu | Neural network backend (CPU-only) |
+| numpy | 1.24.3 | Numerical operations |
+| pandas | 2.0.3 | Data loading and manipulation |
+| matplotlib | 3.8.2 | Visualization |
+| seaborn | 0.13.0 | Statistical plots |
+| scipy | 1.11.4 | Scientific computing utilities |
+| pytest | 7.4.4 | Test suite |
 
 ---
 
@@ -126,16 +133,29 @@ bash scripts/verify_env.sh
 
 | Dataset | Source | Filename | Destination |
 |---------|--------|----------|-------------|
-| {{DATASET_1_NAME}} | {{DATA_SOURCE}} | `{{DATASET_1_FILE}}` | `data/raw/{{DATASET_1_FILE}}` |
-| {{DATASET_2_NAME}} | {{DATA_SOURCE}} | `{{DATASET_2_FILE}}` | `data/raw/{{DATASET_2_FILE}}` |
-| *(add rows)* | | | |
+| CICIDS2017 (Monday) | UNB CIC | `Monday-WorkingHours.pcap_ISCX.csv` | `data/raw/` |
+| CICIDS2017 (Tuesday) | UNB CIC | `Tuesday-WorkingHours.pcap_ISCX.csv` | `data/raw/` |
+| CICIDS2017 (Wed) | UNB CIC | `Wednesday-workingHours.pcap_ISCX.csv` | `data/raw/` |
+| CICIDS2017 (Thu AM) | UNB CIC | `Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv` | `data/raw/` |
+| CICIDS2017 (Thu PM) | UNB CIC | `Thursday-WorkingHours-Afternoon-Infilteration.pcap_ISCX.csv` | `data/raw/` |
+| CICIDS2017 (Fri AM) | UNB CIC | `Friday-WorkingHours-Morning.pcap_ISCX.csv` | `data/raw/` |
+| CICIDS2017 (Fri PM PortScan) | UNB CIC | `Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv` | `data/raw/` |
+| CICIDS2017 (Fri PM DDoS) | UNB CIC | `Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv` | `data/raw/` |
 
 ### Placement Instructions
 
 ```bash
-# Download datasets from {{DATA_SOURCE}} and place at:
-data/raw/{{DATASET_1_FILE}}    # {{DATASET_1_DESCRIPTION}}
-data/raw/{{DATASET_2_FILE}}    # {{DATASET_2_DESCRIPTION}}
+# 1. Register at https://www.unb.ca/cic/datasets/ids-2017.html
+# 2. Download the "MachineLearningCVE" ZIP archive (8 CSV files)
+# 3. Extract all 8 CSV files into data/raw/
+data/raw/Monday-WorkingHours.pcap_ISCX.csv
+data/raw/Tuesday-WorkingHours.pcap_ISCX.csv
+data/raw/Wednesday-workingHours.pcap_ISCX.csv
+data/raw/Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv
+data/raw/Thursday-WorkingHours-Afternoon-Infilteration.pcap_ISCX.csv
+data/raw/Friday-WorkingHours-Morning.pcap_ISCX.csv
+data/raw/Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv
+data/raw/Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv
 ```
 
 ### Verification
@@ -175,36 +195,48 @@ python scripts/check_data_ready.py
 python scripts/check_leakage.py
 ```
 
-### Phase 1: EDA
+### Phase 1: EDA & Hypotheses
 
 ```bash
-# Generate EDA artifacts (per dataset)
-python scripts/run_eda.py --dataset {{DATASET_1_NAME}} --seed 42
-python scripts/run_eda.py --dataset {{DATASET_2_NAME}} --seed 42
+python src/eda.py --seed 42
+# Produces: outputs/eda/eda_summary.json, outputs/eda/*.png
 ```
 
-### Phase 2-N: Experiments
-
-*(Fill in per-part experiment commands. Include all flags, seeds, and budget references.)*
+### Phase 2a: Baseline Classifiers
 
 ```bash
-# Part {{N}}: {{PART_NAME}}
-# python scripts/run_{{PART}}.py --dataset {{DATASET}} --seed 42 ...
+python src/train_baselines.py --seed 42
+# Trains RF, XGBoost, MLP, SVM on clean data; produces accuracy/F1 baselines
 ```
 
-*(For multi-seed stability runs, repeat with each seed in [42, 123, 456, 789, 1024].)*
+### Phase 2b: Unconstrained Adversarial Attacks
+
+```bash
+python src/adversarial_attacks.py --seed 42
+# Applies FGSM, PGD, C&W, ZOO on baseline models (all features perturbed)
+```
+
+### Phase 2c: Constrained Adversarial Attacks
+
+```bash
+python src/adversarial_attacks.py --seed 42 --constrained
+# Restricts perturbations to controllable features only (57 of 78)
+```
+
+### Phase 2d: Adversarial Defenses
+
+```bash
+python src/defenses.py --seed 42
+# Evaluates adversarial training, feature squeezing, input preprocessing
+```
+
+*(For multi-seed stability runs, repeat each phase with seeds [42, 123, 456, 789, 1024].)*
 
 ### Final: Evaluation & Artifacts
 
 ```bash
-# Final evaluation (test split accessed ONCE)
-python scripts/final_eval.py --seed 42
-
-# Generate all report figures and tables
-python scripts/make_report_artifacts.py --seed 42
-
 # Verify artifact integrity
-python scripts/verify_manifests.py
+python scripts/check_data_ready.py
 # Expected: exits 0, all hashes match
 ```
 
@@ -212,37 +244,39 @@ python scripts/verify_manifests.py
 
 ## 8) EDA Summaries
 
-*(Include per-dataset EDA summaries so reviewers can verify their reproduction matches. This section is filled in after EDA is complete.)*
-
-### {{DATASET_1_NAME}}
+### CICIDS2017 (all 8 CSV files combined)
 
 ```
-Shape: *(rows x columns)*
-Target: *(target variable and type)*
-Features: *(feature count and types)*
-Missing values: *(count)*
-```
-
-**Class Distribution:**
-
-| Class | Count | Fraction |
-|-------|------:|---------:|
-| *(class)* | *(count)* | *(fraction)* |
-
-### {{DATASET_2_NAME}}
-
-```
-Shape: *(rows x columns)*
-Target: *(target variable and type)*
-Features: *(feature count and types)*
-Missing values: *(count)*
+Shape: 2,827,876 rows x 79 columns (78 features + 1 label)
+Target: Label (categorical, 15 classes)
+Features: 78 numeric (57 controllable, 14 observable, 7 uncategorized)
+Missing values: 1,358 (Flow Bytes/s only)
+Infinity values: 4,376 (Flow Bytes/s: 1,509; Flow Packets/s: 2,867)
+Zero-variance features: 8 (Bwd PSH/URG Flags, all 6 Bulk Rate features)
+Highly correlated pairs (|r| > 0.95): 50
 ```
 
 **Class Distribution:**
 
 | Class | Count | Fraction |
 |-------|------:|---------:|
-| *(class)* | *(count)* | *(fraction)* |
+| BENIGN | 2,271,320 | 80.32% |
+| DoS Hulk | 230,124 | 8.14% |
+| PortScan | 158,804 | 5.62% |
+| DDoS | 128,025 | 4.53% |
+| DoS GoldenEye | 10,293 | 0.36% |
+| FTP-Patator | 7,935 | 0.28% |
+| SSH-Patator | 5,897 | 0.21% |
+| DoS slowloris | 5,796 | 0.20% |
+| DoS Slowhttptest | 5,499 | 0.19% |
+| Bot | 1,956 | 0.07% |
+| Web Attack - Brute Force | 1,507 | 0.05% |
+| Web Attack - XSS | 652 | 0.02% |
+| Infiltration | 36 | <0.01% |
+| Web Attack - SQL Injection | 21 | <0.01% |
+| Heartbleed | 11 | <0.01% |
+
+**Imbalance ratio:** 206,484:1 (BENIGN vs Heartbleed)
 
 ---
 
@@ -253,27 +287,27 @@ After running the full reproduction sequence, the following directory structure 
 ```
 outputs/
 ├── eda/                           # EDA artifacts
-│   ├── {{DATASET_1_NAME}}_eda_summary.json
-│   └── {{DATASET_2_NAME}}_eda_summary.json
-├── sanity_checks/                 # Sanity check results
-├── {{PART_N}}/                    # Per-part experiment outputs
-│   └── {{DATASET}}/{{METHOD}}/seed_{{SEED}}/
-│       ├── metrics.csv
-│       ├── summary.json
-│       ├── config_resolved.yaml
-│       └── run_manifest.json
-├── final_eval/                    # Final test evaluation
+│   ├── eda_summary.json           # Full EDA statistics (JSON)
+│   ├── class_distribution.png     # Class imbalance visualization
+│   ├── feature_correlations.png   # Correlation heatmap
+│   └── controllable_vs_observable.png  # Feature controllability chart
+├── provenance/                    # Provenance artifacts
+│   ├── versions.txt               # Package versions snapshot
+│   ├── run_log.json               # Execution log
+│   └── git_commit_sha.txt         # Commit SHA at run time
+├── baselines/                     # Phase 2a baseline results
+├── attacks/                       # Phase 2b-2c adversarial attack results
+├── defenses/                      # Phase 2d defense evaluation results
 ├── figures/                       # Report figures
-├── tables/                        # Report tables
-└── artifact_manifest.json         # Global integrity manifest
+└── tables/                        # Report tables
 ```
 
 ### Verification
 
 ```bash
-# Verify all manifests
-python scripts/verify_manifests.py
-# Expected: "N files verified, 0 mismatches, 0 missing"
+# Verify data integrity
+python scripts/check_data_ready.py
+# Expected: exits 0, all 8 CSV files present, SHA-256 hashes match data/checksums.sha256
 
 # Run test suite
 python -m pytest tests/ -v
