@@ -68,6 +68,51 @@ The threat model MUST be defined before any adversarial evaluation begins. It co
 | **Perturbation budget (ε)** | [0.01, 0.05, 0.1, 0.2, 0.3, 0.5] |
 | **Attack surface** | Test-time inputs (57 attacker-controllable features out of 78 total) |
 
+### 2b) Formal Threat Model (YAML)
+
+```yaml
+threat_model:
+  adversary_knowledge: black_box
+  adversary_capability:
+    perturbation_type: noise  # Only noise tested; gradient attacks NOT tested
+    perturbation_budget:
+      norm: L_inf
+      epsilon: [0.01, 0.05, 0.1, 0.2, 0.5, 1.0]
+    access:
+      - feature_values  # Can observe and modify input features
+    constraints:
+      - "Cannot modify defender-observable features (14 of 71 total)"
+      - "Cannot modify system-determined features"
+  adversary_goal: untargeted  # Evade detection (cause misclassification)
+  attack_surface:
+    controllable_features: [payload_bytes, packet_size, port_number, protocol_flags, timing_intervals, ...]  # 57 features
+    observable_features: [flow_duration, total_packets, bytes_transferred, ...]  # 14 features
+    system_features: []
+  attacks_tested:
+    - type: random_noise_unconstrained
+      sophistication: low
+      tool: custom (numpy random perturbation)
+    - type: random_noise_constrained
+      sophistication: low
+      tool: custom (numpy, controllable features only)
+  attacks_NOT_tested:
+    - type: FGSM
+      reason: "sklearn RF/XGBoost lack differentiable outputs; would require PyTorch retraining"
+    - type: PGD
+      reason: "Same — requires gradient access"
+    - type: C&W
+      reason: "Same — gradient-based optimization"
+    - type: transferability_attack
+      reason: "Out of scope — would require training surrogate model"
+    - type: adaptive_attack
+      reason: "Out of scope — adversary aware of defense not tested"
+  limitation_acknowledgment: |
+    All attacks use random noise perturbation only. This represents a weak adversary.
+    Gradient-based attacks (FGSM, PGD, C&W) were not tested because sklearn models
+    lack differentiable outputs. Results should be interpreted as robustness against
+    noise-based evasion, not against gradient-optimized or adaptive adversaries.
+```
+
 **Rule:** The threat model MUST be documented in the report Methods section before adversarial experiments run.
 
 **Verification:** Report Methods section contains a threat model paragraph specifying all properties above. `config_resolved.yaml` records `threat_model`, `perturbation_norm`, and `epsilon` for every adversarial run.
