@@ -1,0 +1,78 @@
+# Resolved experiment configuration for FP-01 Adversarial IDS
+# Generated: 2026-03-16
+# Source: FINDINGS.md + training scripts
+
+experiment:
+  name: adversarial-ids-ml
+  project_id: FP-01
+  dataset: CICIDS2017
+
+data:
+  source: CICIDS2017
+  total_flows: 2830000  # 2.83M
+  num_classes: 15
+  num_features: 78
+  sample_frac: 0.10  # 10% sample used for training
+  training_rows: 283000  # approx 10% of 2.83M
+
+models:
+  - name: RandomForest
+    framework: sklearn
+    type: ensemble
+  - name: XGBoost
+    framework: xgboost
+    type: ensemble
+  - name: MLP
+    framework: sklearn
+    type: neural
+  - name: SVM-RBF
+    framework: sklearn
+    type: kernel
+    notes: "Subsampled to 50K rows (SVM O(n^2) memory)"
+  - name: LightGBM
+    framework: lightgbm
+    type: ensemble
+    notes: "High variance; possible hyperparameter sensitivity"
+
+seeds:
+  baseline: [123, 456, 789, 1024]
+  attack_defense: [42]
+  expanded_models: [42, 123, 456, 789, 1024]
+
+controllability:
+  total_features: 78
+  attacker_controllable: 57
+  defender_observable: 14
+  description: >
+    57 features are attacker-controllable (packet timing, payload size,
+    flow duration). 14 features are defender-observable only (TCP flags,
+    destination port -- set by OS/network stack). Remaining features
+    are shared or derived.
+
+attack_config:
+  method: random_noise_perturbation
+  type: noise
+  epsilon_values: [0.3]
+  gradient_based: false
+  notes: >
+    Gradient-based attacks (FGSM, PGD, C&W) not tested because sklearn
+    RandomForest and XGBoost lack differentiable outputs. All results
+    reflect robustness against noise-based evasion only.
+
+defense_config:
+  methods:
+    - name: adversarial_training
+      recovery_xgb: 0.61
+      recovery_rf: 0.37
+    - name: feature_squeezing
+      recovery_xgb: 0.00
+      recovery_rf: 0.01
+    - name: constraint_aware_detection
+      recovery_xgb: 1.00
+      recovery_rf: 1.00
+      notes: "100% detection against unconstrained noise only"
+
+learning_curve:
+  fractions: [0.10, 0.25, 0.50, 0.75, 1.00]
+  seed: 42
+  sample_frac: 0.10
