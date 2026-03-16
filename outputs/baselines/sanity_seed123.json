@@ -1,0 +1,20 @@
+{
+  "seed": 123,
+  "baselines": {
+    "dummy_most_frequent": {
+      "macro_f1": 0.0742
+    },
+    "dummy_stratified": {
+      "macro_f1": 0.0838
+    },
+    "rf_real": {
+      "macro_f1": 0.8666
+    },
+    "rf_shuffled": {
+      "macro_f1": 0.0742
+    }
+  },
+  "sanity_gap_vs_shuffled": 0.7924,
+  "sanity_gap_vs_dummy": 0.7828,
+  "sanity_pass": true
+}
