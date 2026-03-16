@@ -75,6 +75,28 @@ The most effective defense isn't adversarial training (which recovers 37-61% of 
 
 ---
 
+## Learning Curve Analysis
+
+**Result: Both RF and XGBoost improve substantially from 10% to 75% of training data, then plateau or slightly decline at full size. [SUGGESTED] (10% sample, 1 seed)**
+
+Validation F1 across training fractions (seed 42, --sample-frac 0.1 = 84,823 total training rows):
+
+| Fraction | n_samples | RF Val F1 | XGBoost Val F1 | MLP Val F1 |
+|----------|-----------|-----------|----------------|------------|
+| 0.10 | 8,482 | 0.629 | 0.821 | 0.636 |
+| 0.25 | 21,205 | 0.792 | 0.897 | 0.688 |
+| 0.50 | 42,411 | 0.812 | 0.906 | 0.770 |
+| 0.75 | 63,617 | 0.867 | **0.922** | 0.720 |
+| 1.00 | 84,823 | 0.840 | 0.900 | 0.724 |
+
+**Key finding:** XGBoost peaks at 75% of training data (F1 0.922) then drops slightly at full size (0.900), suggesting mild overfitting or noise at the margin. RF follows a similar pattern peaking at 75% (0.867) before declining to 0.840. MLP peaks at 50% (0.770) and declines thereafter, consistent with the MLP's weaker overall performance on this task.
+
+**Interpretation:** Unlike FP-03 (which plateaus immediately, confirming limited feature signal), the IDS learning curves show genuine improvement up to 75% of training data, indicating the CICIDS2017 feature space contains substantial learnable signal. The slight decline at 100% may indicate that the last quartile of training data introduces noise or class-imbalance edge cases. Running on the full 2.83M dataset (rather than 10% sample) and with multiple seeds would provide a clearer picture.
+
+**Qualification:** These results use a single seed (42) on a 10% sample of CICIDS2017. The baseline experiments (reported above) use 4 seeds and confirm model stability (XGBoost 0.895 +/- 0.013). Full-data, multi-seed learning curves would strengthen these findings.
+
+---
+
 ## Limitations
 
 1. **Random noise only — no gradient-based attacks** — All attacks use random uniform noise perturbation. Gradient-based attacks (FGSM, PGD, C&W) were not tested because sklearn RandomForest and XGBoost lack differentiable outputs. Black-box gradient-free attacks (ZOO, HopSkipJump) would provide stronger adversarial examples and likely achieve higher attack success rates. All ASR and defense recovery numbers should be interpreted in the context of noise-based evasion only.
