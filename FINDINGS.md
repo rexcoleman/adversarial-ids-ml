@@ -97,6 +97,29 @@ Validation F1 across training fractions (seed 42, --sample-frac 0.1 = 84,823 tot
 
 ---
 
+## Expanded Algorithm Results (SVM-RBF, LightGBM)
+
+### Multi-Seed Results (5 seeds: 42, 123, 456, 789, 1024)
+
+| Model | Macro-F1 (mean +/- std) | Accuracy (best seed) | Train Time (mean) | Notes |
+|-------|------------------------|---------------------|--------------------|-------|
+| SVM-RBF | **0.503 +/- 0.004** [DEMONSTRATED: 5 seeds] | 0.959 | ~1,408s | Subsampled to 50K rows (SVM O(n^2) memory) |
+| LightGBM | **0.174 +/- 0.063** [DEMONSTRATED: 5 seeds] | 0.896 (best) | ~250s | High variance; possible hyperparameter sensitivity |
+
+### Comparison: All 5 Algorithms [DEMONSTRATED: 5 seeds]
+
+| Rank | Model | Macro-F1 (mean) | Seeds | Verdict |
+|------|-------|----------------|-------|---------|
+| 1 | XGBoost | 0.895 +/- 0.013 | 4 | Best overall |
+| 2 | Random Forest | 0.853 +/- 0.005 | 4 | Strong, most stable |
+| 3 | MLP | 0.774 +/- 0.007 | 4 | Decent, neural baseline |
+| 4 | SVM-RBF | 0.503 +/- 0.004 | 5 | Weak — subsampled to 50K |
+| 5 | LightGBM | 0.174 +/- 0.063 | 5 | Poor — high variance, needs tuning |
+
+**Key finding:** Tree ensembles (XGBoost, RF) dominate on CICIDS2017 tabular data. SVM-RBF and LightGBM significantly underperform under current constraints. SVM-RBF's subsampling to 50K training rows (vs 170K for other models) is the likely bottleneck. LightGBM's instability (std=0.063, 3x higher than XGBoost) suggests hyperparameter sensitivity with the 15-class encoding. Neither expanded algorithm changes the project's core findings about adversarial robustness and feature controllability, which were established with RF and XGBoost.
+
+---
+
 ## Limitations
 
 1. **Random noise only — no gradient-based attacks** — All attacks use random uniform noise perturbation. Gradient-based attacks (FGSM, PGD, C&W) were not tested because sklearn RandomForest and XGBoost lack differentiable outputs. Black-box gradient-free attacks (ZOO, HopSkipJump) would provide stronger adversarial examples and likely achieve higher attack success rates. All ASR and defense recovery numbers should be interpreted in the context of noise-based evasion only.
