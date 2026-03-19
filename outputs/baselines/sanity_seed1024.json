@@ -8,13 +8,13 @@
       "macro_f1": 0.0838
     },
     "rf_real": {
-      "macro_f1": 0.8597
+      "macro_f1": 0.8524
     },
     "rf_shuffled": {
       "macro_f1": 0.0743
     }
   },
-  "sanity_gap_vs_shuffled": 0.7855,
-  "sanity_gap_vs_dummy": 0.7759,
+  "sanity_gap_vs_shuffled": 0.7782,
+  "sanity_gap_vs_dummy": 0.7686,
   "sanity_pass": true
 }
