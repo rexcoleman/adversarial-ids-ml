@@ -1,11 +1,14 @@
 # A+ COMPLIANCE CHECKLIST
 
-<!-- version: 1.0 -->
+<!-- version: 3.0 -->
 <!-- created: 2026-03-16 -->
+<!-- updated: 2026-03-19 -->
 <!-- project: FP-01 Adversarial ML on Network Intrusion Detection -->
 <!-- tests: 70 pass, 2 skip -->
 
 > **Usage:** Check items as you complete them. Each item references the quality gate that requires it.
+>
+> **v3.0 changes:** Added Conference Readiness section (10 items), updated summary totals.
 
 ---
 
@@ -57,7 +60,7 @@
 | [x] | `reproduce.sh` runs end-to-end without manual steps | Gate 5 | `reproduce.sh` at repo root |
 | [x] | Environment locked (`environment.yml` or `requirements.txt`) | Gate 0 | `environment.yml` |
 | [ ] | Data checksums verified (SHA-256 in manifest) | Gate 0 | Not yet implemented |
-| [ ] | Artifact manifest complete and hashes match | Gate 5 | No manifest spec yet |
+| [ ] | Artifact manifest complete and hashes match | Gate 5 | FINDINGS.md artifact registry has PENDING hashes |
 | [ ] | All phase gates pass (`bash scripts/check_all_gates.sh`) | Gate 5 | No gate script yet |
 | [ ] | CI pipeline green (if applicable) | Gate 5 | No CI configured |
 | [x] | Code review completed (self or peer) | Gate 5 | Self-reviewed |
@@ -76,7 +79,27 @@
 | [x] | Code repository public and documented | Gate 6 | GitHub public repo |
 | [x] | README includes reproduction instructions | Gate 6 | README.md present |
 | [x] | License and attribution complete | Gate 6 | LICENSE file present |
-| [x] | FINDINGS.md written with structured conclusions | Gate 5 | 13 [DEMONSTRATED] tags |
+| [x] | FINDINGS.md written with structured conclusions | Gate 5 | Hypothesis resolutions, negative results, content hooks, artifact registry |
+| [x] | Content plan created with channel mapping | Gate 6 | `docs/CONTENT_PLAN.md` |
+| [x] | LinkedIn post drafted | Gate 6 | `blog/linkedin_post.md` |
+| [x] | Substack intro drafted | Gate 6 | `blog/substack_intro.md` |
+
+---
+
+## 5) Conference Readiness
+
+| Done | Item | Gate Ref | Notes |
+|------|------|----------|-------|
+| [x] | Abstract written (<=250 words) | Gate 7 | `blog/conference_abstract.md` — 188 words |
+| [x] | Talk title finalized (provocative, specific) | Gate 7 | "Your IDS Adversarial Defense Is Testing the Wrong Threat Model" |
+| [ ] | Slide deck outline (10-15 slides, 20-min format) | Gate 7 | Not yet created |
+| [ ] | Demo script written (live or recorded walkthrough) | Gate 7 | Not yet created |
+| [ ] | Speaker bio variants (50-word, 100-word, 200-word) | Gate 7 | Only 200-word version exists |
+| [ ] | Key metrics memorized for Q&A (top 5 numbers) | Gate 7 | 35% ASR reduction, 61% adv training, 0% squeezing, 100% architectural, 5 algorithms |
+| [ ] | Backup slides for anticipated questions | Gate 7 | Limitations, adaptive attacker, gradient attacks |
+| [ ] | Dry run completed (timed, recorded) | Gate 7 | Not yet done |
+| [x] | Threat model visual ready for slides | Gate 7 | `blog/adversarial_ids_threat_model.md` + `figures/` |
+| [ ] | CFP submission drafted with all required fields | Gate 7 | Abstract ready; full CFP form not yet completed |
 
 ---
 
@@ -87,9 +110,14 @@
 | ML Rigor | 10 | 12 | 83% |
 | Cybersecurity Rigor | 7 | 10 | 70% |
 | Execution | 8 | 12 | 67% |
-| Publication | 8 | 9 | 89% |
-| **Overall** | **33** | **43** | **77%** |
+| Publication | 11 | 12 | 92% |
+| Conference Readiness | 3 | 10 | 30% |
+| **Overall** | **39** | **56** | **70%** |
 
 > **A+ threshold:** All Gate 0-5 items checked. Gate 6-7 items required for publication track only.
 >
-> **Remaining gaps:** Ablation study (Gate 4), statistical tests (Gate 4), data checksums (Gate 0), artifact manifest (Gate 5), gate script (Gate 5), CI (Gate 5), external review (Gate 7), and 3 out-of-scope cybersecurity items.
+> **Remaining gaps (Gate 0-5):** Ablation study, statistical tests, data checksums, artifact hashes, gate script, CI.
+>
+> **Remaining gaps (Gate 6-7):** External review, slide deck, demo script, speaker bio variants, Q&A prep, backup slides, dry run, CFP form.
+>
+> **Compute-dependent items (run separately):** Ablation study, statistical significance tests, artifact SHA-256 hashes.

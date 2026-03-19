@@ -103,6 +103,12 @@
 
 ---
 
+## Lock Commit
+
+**lock_commit:** `PENDING` — will be set to the git SHA of the commit that finalizes all hypothesis resolutions and compute results. Once set, no hypothesis statement or falsification criterion may be modified without a new registry entry.
+
+---
+
 ## Resolution Key
 
 | Tag | Meaning |

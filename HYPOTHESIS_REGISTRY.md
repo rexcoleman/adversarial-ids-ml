@@ -60,6 +60,8 @@ All 4 hypotheses resolved. 2 fully supported, 2 partially supported.
 
 **Key qualification:** All attacks use random noise perturbation only. Gradient-based attacks (FGSM, PGD, C&W) were not tested because sklearn RF and XGBoost lack differentiable outputs. Results should be interpreted as robustness against noise-based evasion, not against gradient-optimized adversaries.
 
+**lock_commit:** `PENDING` — will be set to the git SHA of the commit that finalizes all hypothesis resolutions and compute results.
+
 ---
 
 ## 5) Acceptance Criteria

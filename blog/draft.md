@@ -6,6 +6,8 @@ Your IDS adversarial defense is probably testing the wrong threat model. I built
 
 An end-to-end adversarial ML pipeline on the CICIDS2017 network intrusion detection dataset (2.83M flows, 15 attack classes). Three classifiers (XGBoost, Random Forest, MLP), three defense strategies, and the key insight: a **feature controllability matrix** that splits 78 network features into 57 attacker-controllable and 14 defender-observable.
 
+![CICIDS2017 class distribution across 15 attack types](images/class_distribution.png)
+
 Built with [govML](https://github.com/rexcoleman/govML) for project governance. This was the project that led to govML's security-ml profile.
 
 ## The Problem With Standard Adversarial Testing
@@ -18,6 +20,8 @@ Most adversarial ML research on IDS treats all features as equally perturbable. 
 When you restrict perturbations to only the 57 attacker-controllable features, the picture changes dramatically.
 
 ## Architecture
+
+![Feature controllability split: 57 attacker-controllable vs 14 defender-observable](images/controllable_vs_observable.png)
 
 ```
 CICIDS2017 (2.83M flows)
@@ -46,6 +50,8 @@ CICIDS2017 (2.83M flows)
 
 ### 1. Feature Constraints Reduce Attack Success by 35%
 
+![Adversarial budget curves: F1 vs epsilon for constrained and unconstrained attacks](images/adversarial_budget_curves.png)
+
 | Attack Type | XGBoost F1 | Random Forest F1 |
 |---|---|---|
 | No attack (baseline) | 0.823 | 0.778 |
@@ -56,6 +62,8 @@ CICIDS2017 (2.83M flows)
 Restricting to attacker-controllable features reduces XGBoost attack success rate by 35%. The model still degrades, but the threat is significantly smaller than unrestricted testing suggests.
 
 ### 2. Adversarial Training Works, Feature Squeezing Doesn't
+
+![Defense recovery comparison across three strategies](images/defense_recovery.png)
 
 | Defense | XGBoost Recovery | RF Recovery |
 |---|---|---|
@@ -71,6 +79,10 @@ Feature squeezing (rounding features to reduce perturbation space) is completely
 
 This is the core insight: **security architecture (which features to monitor) outperforms learned defenses (how to train the model).**
 
+![Algorithm comparison: macro-F1 across all 5 classifiers](images/algorithm_comparison.png)
+
+![Per-class feature importance heatmap](images/per_class_heatmap.png)
+
 ## The Controllability Principle
 
 This finding led to what I now call **adversarial control analysis** — classifying inputs by who controls them. It's since been validated across three more domains:
@@ -83,6 +95,8 @@ This finding led to what I now call **adversarial control analysis** — classif
 | Crypto migration | FP-03 | 20% developer | 70% library |
 
 The principle transfers because security is fundamentally about control: who controls the input determines what defense is possible.
+
+![Learning curves: validation F1 across training data fractions](images/learning_curves.png)
 
 ## What I Learned
 
