@@ -1,3 +1,5 @@
+> **⚠️ ARCHIVED** — This project is archived. The research is complete and the findings remain valid, but no further development is planned. The adversarial control analysis methodology developed here continues in active projects — see [rexcoleman.dev](https://rexcoleman.dev) for current work.
+
 # Adversarial ML on Network Intrusion Detection
 
 **Can ML-based intrusion detection systems survive adversarial evasion by a realistic attacker?**
